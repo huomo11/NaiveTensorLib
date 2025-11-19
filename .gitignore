@@ -1,0 +1,15 @@
+# .gitignore 内容
+# 忽略构建目录
+build/
+out/
+
+# 忽略编译产生的中间文件
+*.o
+*.obj
+
+# 忽略可执行文件
+main
+main.exe
+
+# 忽略 VS Code 配置 (可选，通常建议忽略，每个人配置不同)
+.vscode/
