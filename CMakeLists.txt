@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.10)
 # 声明项目语言：C++ (CXX) 和 CUDA
 project(NaiveTensorLib LANGUAGES CXX CUDA)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+
 # 强制使用 C++17 (现代 HPC 标配)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
@@ -16,10 +19,10 @@ endif()
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.cu")
 
 # 生成可执行文件
-add_executable(main ${SOURCES})
+add_executable(tensorlib ${SOURCES})
 
 # 开启分离编译 (允许在不同文件中调用 CUDA 函数)
-set_target_properties(main PROPERTIES
+set_target_properties(tensorlib PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
 )
 
