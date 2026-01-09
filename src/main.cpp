@@ -1,39 +1,28 @@
-#include "../include/tensor.h"
+#include "../include/naive_tensor/tensor.h"
+#include "../include/naive_tensor/ops.h" // 引入新写的算子
 #include <iostream>
 
-int main()
-{
-    try
-    {
-        std::cout << "=== Test 1: Creating a Double Tensor ===" << std::endl;
-        // 创建一个 3x4 的双精度张量
-        naive::Tensor<double> t1({3, 4});
-        t1.print_info();
+int main() {
+    // 1. 造数据
+    naive::Tensor<double> x({5});
+    naive::Tensor<double> y({5});
+    x.fill(1.0); // x 全是 1
+    y.fill(2.0); // y 全是 2
 
-        std::cout << "\n=== Test 2: Creating a Float Tensor ===" << std::endl;
-        // 创建一个 5x5 的单精度张量
-        naive::Tensor<float> t2({5, 5});
-        t2.print_info();
+    // 2. 测试 AXPY: y = 2.0 * x + y
+    // 预期结果：y 变成 2*1 + 2 = 4
+    std::cout << "Testing AXPY..." << std::endl;
+    naive::ops::axpy(x, y, 2.0);
+    
+    // 打印 y 的第一个元素看看对不对
+    std::cout << "y[0] (should be 4): " << y.data()[0] << std::endl;
 
-        // 修改数据测试：把第一个元素改成 3.14
-        t2.data()[0] = 3.14f;
-        std::cout << "First element of t2: " << t2.data()[0] << std::endl;
-
-        std::cout << "\n=== Test 3: Fill Function ===" << std::endl;
-        naive::Tensor<float> t3({2, 3}); // 创建一个 2x3 的张量
-            std::cout << "Data at index 0: " << t3.data()[0] << std::endl;
-
-        t3.fill(6.66f);                  // 全部填成 6.66
-        t3.print_info();                 // 打印形状
-
-        std::cout << "Data at index 0: " << t3.data()[0] << std::endl;
-        std::cout << "Data at index 5: " << t3.data()[5] << std::endl;
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+    // 3. 测试 Dot: x * y
+    // 预期结果：1 * 4 * 5个元素 = 20
+    // 注意：现在的 y 已经是 4 了，x 还是 1
+    std::cout << "Testing Dot..." << std::endl;
+    double res = naive::ops::dot(x, y);
+    std::cout << "Dot result (should be 20): " << res << std::endl;
 
     return 0;
 }

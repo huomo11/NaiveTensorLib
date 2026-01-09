@@ -1,4 +1,4 @@
-#include "../include/tensor.h"
+#include "../include/naive_tensor/tensor.h"
 #include <numeric>
 #include <algorithm>
 
