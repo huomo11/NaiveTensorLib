@@ -1,3 +1,16 @@
+# 忽略编译生成的文件夹
 build/
-.DS_Store
+
+# 忽略 VSCode 的配置文件夹 (如果不希望共享配置)
 .vscode/
+
+# 忽略可执行文件 (Linux/Mac)
+run
+test
+main_app
+
+# 忽略 C++ 编译中间文件
+*.o
+*.a
+*.so
+*.dylib

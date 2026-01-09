@@ -13,7 +13,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # --- 2. 定义源代码 ---
 # 这是一个名为 main_app 的可执行程序，它由 src/main.cpp 和 src/tensor.cpp 编译而来
-add_executable(main_app 
+add_executable(run 
     src/main.cpp 
     src/tensor.cpp
 )
