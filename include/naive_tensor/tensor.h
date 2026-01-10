@@ -13,23 +13,28 @@ namespace naive
     class Tensor
     {
     public:
-        // 构造函数：创建一个shape形状的张量
+        // 构造函数
         Tensor(const std::vector<int> &shape);
 
-        // 析构函数：释放内存
+        // 析构函数
         ~Tensor();
 
-        // 获取裸数据指针
+        // 拷贝构造函数
+        Tensor(const Tensor &other);
+
+        // 赋值运算符
+        Tensor &operator=(const Tensor &other);
+
+        // 获取原始数据指针
         T *data() { return data_; }
         const T *data() const { return data_; }
 
-        // 获取元素总数
+        // 获取属性
         int size() const { return size_; }
+        const std::vector<int> &shape() const { return shape_; }
 
-        // 打印张量信息
+        // 工具函数
         void print_info() const;
-
-        // 填充张量
         void fill(T value);
 
     private:
@@ -38,6 +43,6 @@ namespace naive
         T *data_; // 指向堆内存的指针
     };
 
-}
+} // namespace naive
 
 #endif // NAIVE_TENSOR_H

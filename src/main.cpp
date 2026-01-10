@@ -1,28 +1,32 @@
-#include "../include/naive_tensor/tensor.h"
-#include "../include/naive_tensor/ops.h" // 引入新写的算子
+#include "naive_tensor/tensor.h"
+#include "naive_tensor/ops.h"
+#include "naive_tensor/cg.h" // 引入刚才写的求解器
 #include <iostream>
 
 int main() {
-    // 1. 造数据
-    naive::Tensor<double> x({5});
-    naive::Tensor<double> y({5});
-    x.fill(1.0); // x 全是 1
-    y.fill(2.0); // y 全是 2
+    // 1. 准备数据
+    // 构造 A (2x2)
+    naive::Tensor<double> A({2, 2});
+    double* A_ptr = A.data();
+    A_ptr[0] = 2.0;  A_ptr[1] = -1.0;
+    A_ptr[2] = -1.0; A_ptr[3] = 2.0;
 
-    // 2. 测试 AXPY: y = 2.0 * x + y
-    // 预期结果：y 变成 2*1 + 2 = 4
-    std::cout << "Testing AXPY..." << std::endl;
-    naive::ops::axpy(x, y, 2.0);
-    
-    // 打印 y 的第一个元素看看对不对
-    std::cout << "y[0] (should be 4): " << y.data()[0] << std::endl;
+    // 构造 b (长度2, 全是 1.0)
+    naive::Tensor<double> b({2});
+    b.fill(1.0);
 
-    // 3. 测试 Dot: x * y
-    // 预期结果：1 * 4 * 5个元素 = 20
-    // 注意：现在的 y 已经是 4 了，x 还是 1
-    std::cout << "Testing Dot..." << std::endl;
-    double res = naive::ops::dot(x, y);
-    std::cout << "Dot result (should be 20): " << res << std::endl;
+    // 构造 x (长度2, 初始为 0.0)
+    naive::Tensor<double> x({2});
+    x.fill(0.0);
+
+    // 2. 调用求解器
+    std::cout << "=== Start CG Solver ===" << std::endl;
+    naive::solver::cg_solve(A, b, x, 100, 1e-6);
+
+    // 3. 验证结果
+    std::cout << "=== Solution ===" << std::endl;
+    std::cout << "x[0] = " << x.data()[0] << " (Expected: 1.0)" << std::endl;
+    std::cout << "x[1] = " << x.data()[1] << " (Expected: 1.0)" << std::endl;
 
     return 0;
 }
