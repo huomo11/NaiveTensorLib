@@ -45,4 +45,7 @@ namespace naive
 
 } // namespace naive
 
+
+#include "tensor.tpp"
+
 #endif // NAIVE_TENSOR_H

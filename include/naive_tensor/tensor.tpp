@@ -1,4 +1,3 @@
-#include "../include/naive_tensor/tensor.h"
 #include <numeric>
 #include <algorithm>
 
@@ -98,8 +97,5 @@ namespace naive
         return *this;
     }
 
-    // 显式实例化
-    template class naive::Tensor<float>;
-    template class naive::Tensor<double>;
 
 }
