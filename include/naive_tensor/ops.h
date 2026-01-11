@@ -12,24 +12,26 @@ namespace naive
 
         // ------------------------------------------------
         // AXPY: y = alpha * x + y
+        // Level 1 BLAS
         // ------------------------------------------------
         template <typename T>
-        void axpy(const Tensor<T> &x, Tensor<T> &y, T alpha)
+        void axpy(T alpha, const Tensor<T> &x, Tensor<T> &y)
         {
             assert(x.size() == y.size());
 
             const T *x_ptr = x.data();
             T *y_ptr = y.data();
-            int n = x.size();
+            size_t n = x.size();
 
-            for (int i = 0; i < n; ++i)
+            for (size_t i = 0; i < n; ++i)
             {
                 y_ptr[i] += alpha * x_ptr[i];
             }
         }
 
         // ------------------------------------------------
-        // Dot Product: res = x * y
+        // Dot Product: res = x^T * y
+        // Level 1 BLAS
         // ------------------------------------------------
         template <typename T>
         double dot(const Tensor<T> &x, const Tensor<T> &y)
@@ -38,11 +40,11 @@ namespace naive
 
             const T *x_ptr = x.data();
             const T *y_ptr = y.data();
-            int n = x.size();
+            size_t n = x.size();
 
-            double sum = 0.0; // Use double to prevent overflow
+            double sum = 0.0; // 使用 double 累加防止溢出与精度损失
 
-            for (int i = 0; i < n; ++i)
+            for (size_t i = 0; i < n; ++i)
             {
                 sum += x_ptr[i] * y_ptr[i];
             }
@@ -60,42 +62,32 @@ namespace naive
 
             const T *x_ptr = x.data();
             T *y_ptr = y.data();
-            int n = x.size();
+            size_t n = x.size();
 
-            for (int i = 0; i < n; ++i)
+            for (size_t i = 0; i < n; ++i)
             {
                 y_ptr[i] = x_ptr[i];
             }
         }
 
         // ------------------------------------------------
-        // GEMV: y = A * x
-        // A is (M, N), x is (N), y is (M)
+        // Scal: x = alpha * x
+        // Level 1 BLAS
         // ------------------------------------------------
         template <typename T>
-        void gemv(const Tensor<T> &A, const Tensor<T> &x, Tensor<T> &y)
+        void scal(T alpha, Tensor<T> &x)
         {
-            const T *A_ptr = A.data();
-            const T *x_ptr = x.data();
-            T *y_ptr = y.data();
+            T *x_ptr = x.data();
+            size_t n = x.size();
 
-            int M = y.size(); 
-            int N = x.size(); 
-
-            // Row-Major Layout: A_ij is at A_ptr[i * N + j]
-            for (int i = 0; i < M; ++i)
+            for (size_t i = 0; i < n; ++i)
             {
-                double sum = 0.0;
-                for (int j = 0; j < N; ++j)
-                {
-                    sum += A_ptr[i * N + j] * x_ptr[j];
-                }
-                y_ptr[i] = static_cast<T>(sum);
+                x_ptr[i] *= alpha;
             }
         }
 
         // ------------------------------------------------
-        // L2 Norm: sqrt(x * x)
+        // L2 Norm: ||x||_2 = sqrt(x^T * x)
         // ------------------------------------------------
         template <typename T>
         double norm(const Tensor<T> &x)
@@ -104,17 +96,52 @@ namespace naive
         }
 
         // ------------------------------------------------
-        // Scal: x = alpha * x
+        // Element-wise Multiplication: z = x .* y
         // ------------------------------------------------
         template <typename T>
-        void scal(Tensor<T> &x, T alpha)
+        void elwise_mult(const Tensor<T> &x, const Tensor<T> &y, Tensor<T> &z)
         {
-            T *x_ptr = x.data();
-            int n = x.size();
+            assert(x.size() == y.size());
+            assert(y.size() == z.size());
 
-            for (int i = 0; i < n; ++i)
+            const T *x_ptr = x.data();
+            const T *y_ptr = y.data();
+            T *z_ptr = z.data();
+            size_t n = x.size();
+
+            for (size_t i = 0; i < n; ++i)
             {
-                x_ptr[i] *= alpha;
+                z_ptr[i] = x_ptr[i] * y_ptr[i];
+            }
+        }
+
+        // ------------------------------------------------
+        // GEMV: y = A * x
+        // A: (M, N) Row-Major
+        // x: (N)
+        // y: (M)
+        // Level 2 BLAS
+        // ------------------------------------------------
+        template <typename T>
+        void gemv(const Tensor<T> &A, const Tensor<T> &x, Tensor<T> &y)
+        {
+            size_t M = y.size();
+            size_t N = x.size();
+
+            assert(A.size() == M * N);
+
+            const T *A_ptr = A.data();
+            const T *x_ptr = x.data();
+            T *y_ptr = y.data();
+
+            for (size_t i = 0; i < M; ++i)
+            {
+                double sum = 0.0;
+                for (size_t j = 0; j < N; ++j)
+                {
+                    sum += A_ptr[i * N + j] * x_ptr[j];
+                }
+                y_ptr[i] = static_cast<T>(sum);
             }
         }
 

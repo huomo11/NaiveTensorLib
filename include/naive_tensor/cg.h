@@ -6,75 +6,91 @@
 #include <iostream>
 #include <cmath>
 
-namespace naive
-{
-    namespace solver
-    {
-        // ----------------------------------------------------------------
-        // Conjugate Gradient Solver (CG)
-        // 求解 Ax = b
-        // A: 稀疏矩阵 (这里暂时用稠密矩阵代替)
-        // b: 右端项向量
-        // x: 解向量 (初始猜测值，也是输出结果)
-        // ----------------------------------------------------------------
-        template <typename T>
-        void cg_solve(const Tensor<T> &A, const Tensor<T> &b, Tensor<T> &x, int max_iter, double tol)
-        {
-            // --- 1. 初始化 ---
-            // 假设初始 x 为 0，则初始残差 r = b - A*0 = b
-            Tensor<T> r = b;
-            Tensor<T> p = b;
-            Tensor<T> Ap(b.shape());
+namespace naive {
+namespace solver {
 
-            double rho = ops::dot(r, r);
-            double rho_old = rho;
+    // ==========================================
+    // Preconditioned Conjugate Gradient (PCG)
+    // Solves Ax = b with preconditioner M^-1
+    // ==========================================
+    template <typename T>
+    void pcg_solve(const Tensor<T>& A, const Tensor<T>& b, const Tensor<T>& inv_diag, 
+                   Tensor<T>& x, int max_iter, double tol) {
+        
+        // --- Initialization ---
+        // r0 = b - A * x0. Assuming x0 = 0, so r0 = b.
+        Tensor<T> r = b; 
+        
+        // z0 = M^-1 * r0
+        Tensor<T> z(r.shape());
+        ops::elwise_mult(inv_diag, r, z);
 
-            std::cout << "Initial Residual: " << std::sqrt(rho) << std::endl;
+        // p0 = z0
+        Tensor<T> p = z;
+        Tensor<T> Ap(b.shape());
 
-            // --- 2. 迭代求解 ---
-            for (int k = 0; k < max_iter; ++k)
-            {
-                // 检查收敛性
-                if (std::sqrt(rho) < tol)
-                {
-                    std::cout << "Converged at iter " << k << "!" << std::endl;
-                    break;
-                }
+        // rho_0 = r0^T * z0
+        double rho = ops::dot(r, z);
 
-                // 1. Ap = A * p
-                ops::gemv(A, p, Ap);
-
-                // 2. alpha = (r, r) / (p, A * p)
-                double pAp = ops::dot(p, Ap);
-                double alpha = rho / pAp;
-
-                // 3. x = x + alpha * p
-                ops::axpy(p, x, alpha);
-
-                // 4. r = r - alpha * Ap
-                ops::axpy(Ap, r, -alpha);
-
-                // 5. 更新 beta 和搜索方向 p
-                double rho_new = ops::dot(r, r);
-                double beta = rho_new / rho_old;
-
-                // p = r + beta * p
-                // 分两步实现：p = beta * p; p = p + r;
-                ops::scal(p, static_cast<T>(beta));
-                ops::axpy(r, p, static_cast<T>(1.0));
-
-                // 更新 rho
-                rho_old = rho_new;
-                rho = rho_new;
-
-                if (k % 10 == 0)
-                {
-                    std::cout << "Iter " << k << ", Residual: " << std::sqrt(rho) << std::endl;
-                }
+        // --- Iteration Loop ---
+        for (int k = 0; k < max_iter; ++k) {
+            // Check convergence using Euclidean norm of residual
+            if (ops::norm(r) < tol) {
+                std::cout << "PCG Converged at iter " << k << std::endl;
+                return;
             }
+
+            // 1. Matrix-Vector Multiplication: Ap = A * p
+            ops::gemv(A, p, Ap);
+
+            // 2. Step length: alpha = rho / (p^T * A * p)
+            double pAp = ops::dot(p, Ap);
+            double alpha = rho / pAp;
+
+            // 3. Update solution: x = x + alpha * p
+            ops::axpy(static_cast<T>(alpha), p, x);
+
+            // 4. Update residual: r = r - alpha * Ap
+            ops::axpy(static_cast<T>(-alpha), Ap, r);
+
+            // 5. Preconditioning: z = M^-1 * r
+            ops::elwise_mult(inv_diag, r, z);
+
+            // 6. Update search direction
+            double rho_new = ops::dot(r, z);
+            double beta = rho_new / rho;
+            
+            // p = z + beta * p
+            ops::scal(static_cast<T>(beta), p);      // p = beta * p
+            ops::axpy(static_cast<T>(1.0), z, p);    // p = p + z
+
+            // Prepare for next iteration
+            rho = rho_new;
+        }
+        
+        std::cout << "PCG Reached max iterations without full convergence." << std::endl;
+    }
+
+    // ==========================================
+    // Standard Conjugate Gradient (CG)
+    // Wrapper around PCG with Identity Preconditioner
+    // ==========================================
+    template <typename T>
+    void cg_solve(const Tensor<T>& A, const Tensor<T>& b, Tensor<T>& x, int max_iter, double tol) {
+        // Construct Identity Preconditioner (all 1s)
+        Tensor<T> identity_precond(b.shape());
+        T* ptr = identity_precond.data();
+        size_t size = identity_precond.size();
+        
+        // Fill with 1.0
+        for (size_t i = 0; i < size; ++i) {
+            ptr[i] = static_cast<T>(1.0);
         }
 
-    } // namespace solver
+        pcg_solve(A, b, identity_precond, x, max_iter, tol);
+    }
+
+} // namespace solver
 } // namespace naive
 
-#endif
+#endif // NAIVE_CG_H
