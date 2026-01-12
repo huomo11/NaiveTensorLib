@@ -1,71 +1,62 @@
 #include "naive_tensor/tensor.h"
+#include "naive_tensor/utils.h"
 #include "naive_tensor/ops.h"
-#include "naive_tensor/cg.h"    // 确保这里包含了你的 pcg_solve
-#include "naive_tensor/utils.h" // 包含泊松矩阵生成器
+#include "naive_tensor/cg.h"
 #include <iostream>
-#include <iomanip> // 用于 std::scientific
+#include <vector>
+
+using namespace naive;
 
 int main() {
-    int N = 100; // 矩阵规模
-    std::cout << "=== Test Ground: 1D Poisson Equation (N=" << N << ") ===" << std::endl;
+    // ---------------------------------------------------------
+    // 1. 设置问题规模
+    // ---------------------------------------------------------
+    int N = 1000;
+    std::cout << "Setting up Poisson 1D problem, N = " << N << std::endl;
 
     // ---------------------------------------------------------
-    // 1. 准备数据
+    // 2. 生成数据
     // ---------------------------------------------------------
+    // 生成 A (Poisson 1D Matrix, SPD)
+    Tensor<double> A = utils::generate_poisson_1d<double>(N);
     
-    // 生成 A (100x100 泊松矩阵)
-    auto A = naive::utils::generate_poisson_1d<double>(N);
-
-    // 设定真解 x_true (全是 1.0)
-    naive::Tensor<double> x_true({N});
-    x_true.fill(1.0);
-
-    // 计算 b = A * x_true
-    naive::Tensor<double> b({N});
-    naive::ops::gemv(A, x_true, b);
-
-    // 初始猜测 x (全 0)
-    naive::Tensor<double> x({N});
-    x.fill(0.0);
-
-    // [新增关键点] 准备 Jacobi 预处理器 (对角线逆矩阵)
-    // 1D 泊松矩阵的主对角线全是 2.0，所以逆矩阵对角线全是 1/2 = 0.5
-    naive::Tensor<double> inv_diag({N});
-    inv_diag.fill(0.5);
+    // 生成随机 b
+    Tensor<double> b = utils::generate_random_vector<double>(N);
+    
+    // 初始解 x0 (全0)
+    Tensor<double> x({N});
+    
+    // 简单的 Jacobi 预处理 (Poisson 1D 对角线元素全是 2.0)
+    Tensor<double> inv_diag({N});
+    inv_diag.fill(0.5); 
 
     // ---------------------------------------------------------
-    // 2. 求解 (调用 PCG)
+    // 3. 运行 AMP-PCG 求解器
     // ---------------------------------------------------------
-    std::cout << "Starting PCG solver (with Jacobi)..." << std::endl;
+    solver::AmpParams params;
+    params.tol = 1e-10;
+    // params.max_iter = 2000;  <-- 删除这一行，因为 max_iter 已经在下面的函数参数里了
     
-    // [修复点] 参数顺序: A, b, inv_diag, x, max_iter, tol
-    naive::solver::pcg_solve(A, b, inv_diag, x, N * 2, 1e-10);
+    // 调整阈值以观察切换效果 (因为 Poisson 问题收敛很快)
+    params.tau_z_s = 1e-1; // 相对残差 < 0.1 时切 FP32
+    params.tau_z_h = 1e-4; // 相对残差 < 1e-4 时切 FP16
+
+    // max_iter (2000) 作为第 5 个参数传递
+    solver::amp_pcg_solve(A, b, inv_diag, x, 2000, params);
 
     // ---------------------------------------------------------
-    // 3. 验证结果
+    // 4. 验证结果
     // ---------------------------------------------------------
+    // Check True Residual: ||b - Ax||
+    Tensor<double> Ax({N});
+    ops::gemv(A, x, Ax); // Ax = A * x
     
-    // 计算误差向量: error = x - x_true
-    // 逻辑: x = 1.0 * x + (-1.0 * x_true)
+    Tensor<double> r_final = b;
+    // r = b - Ax (using axpy: r = -1.0 * Ax + r)
+    ops::axpy(-1.0, Ax, r_final); 
     
-    // [适配] 使用你的新接口: scal(alpha, x)
-    naive::ops::scal(-1.0, x_true); 
-    
-    // [适配] 使用你的新接口: axpy(alpha, x, y) -> y = alpha*x + y
-    // 这里把变负的 x_true 加到 x 上
-    naive::ops::axpy(1.0, x_true, x); 
-
-    // 计算误差模长
-    double error_norm = naive::ops::norm(x);
-
-    std::cout << "=== Verification ===" << std::endl;
-    std::cout << "L2 Error Norm: " << std::scientific << error_norm << std::endl;
-
-    if (error_norm < 1e-6) {
-        std::cout << "SUCCESS! Solver is accurate." << std::endl;
-    } else {
-        std::cout << "WARNING! Large error detected." << std::endl;
-    }
+    double final_norm = ops::norm(r_final);
+    std::cout << "\nFinal True Residual Norm ||b - Ax|| = " << final_norm << std::endl;
 
     return 0;
 }

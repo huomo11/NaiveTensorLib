@@ -145,6 +145,42 @@ namespace naive
             }
         }
 
+        // [新增] 模拟 FP16 下溢 (Underflow)
+        // 论文核心机制：当数值小于 FP16 最小正规数 (约 6.1e-5) 时，强制归零
+        template <typename T>
+        void quantize_fp16(Tensor<T> &x)
+        {
+            T *ptr = x.data();
+            int n = x.size();
+
+            // FP16 minimum normal number ~ 6.1e-5
+            const double FP16_MIN = 6.1e-5;
+
+            for (int i = 0; i < n; ++i)
+            {
+                // 绝对值太小，直接截断为 0 (模拟 Underflow)
+                if (std::abs(ptr[i]) > 0 && std::abs(ptr[i]) < FP16_MIN)
+                {
+                    ptr[i] = static_cast<T>(0.0);
+                }
+            }
+        }
+
+        // [新增] 模拟 FP32 (Single Precision)
+        // 作用：模拟单精度的精度损失 (截断尾数)
+        template <typename T>
+        void quantize_fp32(Tensor<T> &x)
+        {
+            T *ptr = x.data();
+            int n = x.size();
+            for (int i = 0; i < n; ++i)
+            {
+                // 核心逻辑：转成 float 丢弃精度，再转回 T
+                float temp = static_cast<float>(ptr[i]);
+                ptr[i] = static_cast<T>(temp);
+            }
+        }
+
     } // namespace ops
 } // namespace naive
 
